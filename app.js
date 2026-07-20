@@ -1,10 +1,15 @@
 const STORAGE_KEY = "fourMWorksheetForEng.v1";
 const GOOGLE_SCRIPT_URL = window.APP_CONFIG?.googleScriptUrl || "";
+const SENT_STATUS = "Submitted";
 
 const state = loadState();
 let activeId = null;
 
 const form = document.getElementById("worksheetForm");
+const formPage = document.getElementById("formPage");
+const dataPage = document.getElementById("dataPage");
+const formTab = document.getElementById("formTab");
+const dataTab = document.getElementById("dataTab");
 const sheetList = document.getElementById("sheetList");
 const sheetTableBody = document.getElementById("sheetTableBody");
 const emptyState = document.getElementById("emptyState");
@@ -19,10 +24,7 @@ const th = {
   synced: fromEntities("&#3626;&#3656;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3649;&#3621;&#3657;&#3623; &#3585;&#3619;&#3640;&#3603;&#3634;&#3605;&#3619;&#3623;&#3592;&#3607;&#3637;&#3656; Google Sheet"),
   syncFailed: fromEntities("&#3626;&#3656;&#3591;&#3652;&#3617;&#3656;&#3626;&#3635;&#3648;&#3619;&#3655;&#3592; &#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3618;&#3633;&#3591;&#3648;&#3585;&#3655;&#3610;&#3651;&#3609;&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3609;&#3637;&#3657;"),
   clearConfirm: fromEntities("&#3605;&#3657;&#3629;&#3591;&#3585;&#3634;&#3619;&#3621;&#3657;&#3634;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3633;&#3657;&#3591;&#3627;&#3617;&#3604;&#3651;&#3609;&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3609;&#3637;&#3657;&#3651;&#3594;&#3656;&#3652;&#3627;&#3617;"),
-  draft: fromEntities("&#3618;&#3633;&#3591;&#3652;&#3617;&#3656;&#3626;&#3656;&#3591;"),
-  ready: fromEntities("&#3614;&#3619;&#3657;&#3629;&#3617;&#3626;&#3656;&#3591; ENG"),
-  needMore: fromEntities("ENG &#3586;&#3629;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3648;&#3614;&#3636;&#3656;&#3617;"),
-  closed: fromEntities("&#3611;&#3636;&#3604;&#3648;&#3588;&#3626;"),
+  sent: fromEntities("&#3626;&#3656;&#3591;&#3649;&#3621;&#3657;&#3623;"),
   improved: fromEntities("&#3604;&#3637;&#3586;&#3638;&#3657;&#3609;"),
   noChange: fromEntities("&#3652;&#3617;&#3656;&#3648;&#3611;&#3621;&#3637;&#3656;&#3618;&#3609;"),
   worse: fromEntities("&#3649;&#3618;&#3656;&#3621;&#3591;"),
@@ -48,6 +50,7 @@ form.addEventListener("submit", (event) => {
   resetDefaults();
   saveAndRender();
   if (savedSheet) syncSheetToGoogle(savedSheet);
+  window.location.hash = "submitted";
 });
 
 document.getElementById("newSheetButton").addEventListener("click", () => {
@@ -92,6 +95,7 @@ document.getElementById("clearButton").addEventListener("click", () => {
 document.getElementById("exportButton").addEventListener("click", exportCsv);
 document.getElementById("printButton").addEventListener("click", () => window.print());
 searchInput.addEventListener("input", render);
+window.addEventListener("hashchange", renderRoute);
 
 function readForm() {
   const data = new FormData(form);
@@ -105,7 +109,7 @@ function readForm() {
     machineNotes: clean(data.get("machineNotes")),
     materialNotes: clean(data.get("materialNotes")),
     methodNotes: clean(data.get("methodNotes")),
-    sheetStatus: data.get("sheetStatus"),
+    sheetStatus: SENT_STATUS,
     engNote: clean(data.get("engNote"))
   };
 }
@@ -139,6 +143,7 @@ function render() {
   renderList(rows);
   renderTable(rows);
   renderSyncStatus();
+  renderRoute();
 }
 
 function filteredSheets() {
@@ -159,8 +164,8 @@ function filteredSheets() {
 
 function renderMetrics() {
   document.getElementById("sheetCount").textContent = state.sheets.length;
-  document.getElementById("readyCount").textContent = state.sheets.filter((sheet) => sheet.sheetStatus === "Ready for ENG").length;
-  document.getElementById("closedCount").textContent = state.sheets.filter((sheet) => sheet.sheetStatus === "Closed").length;
+  document.getElementById("localCount").textContent = state.sheets.length;
+  document.getElementById("googleMode").textContent = GOOGLE_SCRIPT_URL ? "ON" : "OFF";
 }
 
 function renderList(rows) {
@@ -172,7 +177,7 @@ function renderList(rows) {
     <button class="sheet-card ${sheet.id === activeId ? "is-active" : ""}" type="button" data-id="${sheet.id}">
       <strong>${escapeHtml(sheet.mfg)} / ${escapeHtml(sheet.model)}</strong>
       <span>${escapeHtml(sheet.machine)}</span>
-      <span>${escapeHtml(displayStatus(sheet.sheetStatus))} - ${formatDate(sheet.updatedAt)}</span>
+      <span>${escapeHtml(formatDate(sheet.updatedAt))}</span>
     </button>
   `).join("");
   sheetList.querySelectorAll("[data-id]").forEach((button) => {
@@ -191,7 +196,7 @@ function renderTable(rows) {
       <td>${escapeHtml(sheet.machine)}</td>
       <td>${escapeHtml(sheet.problem)}</td>
       <td>${compactNotes(sheet)}</td>
-      <td><span class="badge">${escapeHtml(displayStatus(sheet.sheetStatus))}</span><br><span class="muted">${escapeHtml(sheet.collector)}</span></td>
+      <td>${escapeHtml(sheet.collector)}<br><span class="muted">${escapeHtml(formatDate(sheet.updatedAt))}</span></td>
     </tr>
   `).join("");
   emptyState.hidden = rows.length > 0;
@@ -237,7 +242,7 @@ function exportCsv() {
       machine_notes: sheet.machineNotes,
       material_notes: sheet.materialNotes,
       method_notes: sheet.methodNotes,
-      sheet_status: sheet.sheetStatus,
+      sheet_status: sheet.sheetStatus || SENT_STATUS,
       eng_note: sheet.engNote
     };
     return map[key] ?? "";
@@ -285,7 +290,6 @@ function setSyncStatus(message) {
 }
 
 function resetDefaults() {
-  document.getElementById("sheetStatus").value = "Draft";
 }
 
 function resultClass(result) {
@@ -297,12 +301,18 @@ function resultClass(result) {
 
 function displayStatus(status) {
   const map = {
-    Draft: th.draft,
-    "Ready for ENG": th.ready,
-    "ENG need more data": th.needMore,
-    Closed: th.closed
+    Submitted: th.sent,
+    "Ready for ENG": th.sent
   };
   return map[status] || status;
+}
+
+function renderRoute() {
+  const isDataPage = window.location.hash === "#submitted";
+  formPage.hidden = isDataPage;
+  dataPage.hidden = !isDataPage;
+  formTab.classList.toggle("is-active", !isDataPage);
+  dataTab.classList.toggle("is-active", isDataPage);
 }
 
 function displayResult(result) {
