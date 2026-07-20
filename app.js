@@ -6,14 +6,12 @@ const state = loadState();
 let activeId = null;
 
 const form = document.getElementById("worksheetForm");
+const homePage = document.getElementById("homePage");
 const formPage = document.getElementById("formPage");
 const dataPage = document.getElementById("dataPage");
-const formTab = document.getElementById("formTab");
-const dataTab = document.getElementById("dataTab");
 const sheetList = document.getElementById("sheetList");
 const sheetTableBody = document.getElementById("sheetTableBody");
 const emptyState = document.getElementById("emptyState");
-const searchInput = document.getElementById("searchInput");
 const syncStatus = document.getElementById("syncStatus");
 const th = {
   noMatchingSheet: fromEntities("&#3652;&#3617;&#3656;&#3614;&#3610;&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3637;&#3656;&#3605;&#3619;&#3591;&#3585;&#3633;&#3610;&#3585;&#3634;&#3619;&#3588;&#3657;&#3609;&#3627;&#3634;"),
@@ -24,11 +22,8 @@ const th = {
   synced: fromEntities("&#3626;&#3656;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3649;&#3621;&#3657;&#3623; &#3585;&#3619;&#3640;&#3603;&#3634;&#3605;&#3619;&#3623;&#3592;&#3607;&#3637;&#3656; Google Sheet"),
   syncFailed: fromEntities("&#3626;&#3656;&#3591;&#3652;&#3617;&#3656;&#3626;&#3635;&#3648;&#3619;&#3655;&#3592; &#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3618;&#3633;&#3591;&#3648;&#3585;&#3655;&#3610;&#3651;&#3609;&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3609;&#3637;&#3657;"),
   clearConfirm: fromEntities("&#3605;&#3657;&#3629;&#3591;&#3585;&#3634;&#3619;&#3621;&#3657;&#3634;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3633;&#3657;&#3591;&#3627;&#3617;&#3604;&#3651;&#3609;&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3609;&#3637;&#3657;&#3651;&#3594;&#3656;&#3652;&#3627;&#3617;"),
-  sent: fromEntities("&#3626;&#3656;&#3591;&#3649;&#3621;&#3657;&#3623;"),
-  improved: fromEntities("&#3604;&#3637;&#3586;&#3638;&#3657;&#3609;"),
-  noChange: fromEntities("&#3652;&#3617;&#3656;&#3648;&#3611;&#3621;&#3637;&#3656;&#3618;&#3609;"),
-  worse: fromEntities("&#3649;&#3618;&#3656;&#3621;&#3591;"),
-  needAnalysis: fromEntities("&#3619;&#3629; ENG &#3623;&#3636;&#3648;&#3588;&#3619;&#3634;&#3632;&#3627;&#3660;")
+  submittedTitle: fromEntities("&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3607;&#3637;&#3656;&#3626;&#3656;&#3591;&#3652;&#3611;&#3649;&#3621;&#3657;&#3623;"),
+  formTitle: fromEntities("&#3585;&#3619;&#3629;&#3585;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621; 4M")
 };
 
 form.addEventListener("submit", (event) => {
@@ -67,15 +62,15 @@ document.getElementById("seedDataButton").addEventListener("click", () => {
       id: createId(),
       mfg: "NV",
       model: "U12/14",
-      machine: "1-212",
-      collector: "Operator A",
-      problem: "Part dimension out of spec after model change.",
-      manNotes: "- Same operator as normal lot\n- No training change\n- Confirmed hand work sequence",
-      machineNotes: "- Machine setting was changed during model change\n- Fixture lock has small looseness\n- No alarm during run",
-      materialNotes: "- Same supplier\n- New material lot started this morning\n- Surface appearance normal",
-      methodNotes: "- Adjusted condition once\n- Pre-check was not done before first trial\n- Need ENG to confirm standard condition",
-      sheetStatus: "Ready for ENG",
-      engNote: "Please compare standard condition for U12/14 and confirm fixture wear limit.",
+      machine: "1-212 / MC-04",
+      collector: fromEntities("&#3614;&#3609;&#3633;&#3585;&#3591;&#3634;&#3609; A"),
+      problem: fromEntities("&#3594;&#3636;&#3657;&#3609;&#3591;&#3634;&#3609;&#3586;&#3609;&#3634;&#3604;&#3648;&#3585;&#3636;&#3609;&#3626;&#3648;&#3611;&#3588;&#3627;&#3621;&#3633;&#3591;&#3648;&#3611;&#3621;&#3637;&#3656;&#3618;&#3609;&#3619;&#3640;&#3656;&#3609;"),
+      manNotes: fromEntities("- &#3649;&#3617;&#3656;&#3614;&#3636;&#3617;&#3614;&#3660;&#3617;&#3637;&#3619;&#3629;&#3618;&#3607;&#3637;&#3656;&#3612;&#3636;&#3623;&#3591;&#3634;&#3609;\n- gate &#3617;&#3637;&#3588;&#3619;&#3634;&#3610;&#3648;&#3585;&#3634;&#3632;\n- &#3605;&#3657;&#3629;&#3591;&#3651;&#3627;&#3657; ENG &#3605;&#3619;&#3623;&#3592;&#3626;&#3629;&#3610;&#3626;&#3636;&#3585;"),
+      machineNotes: fromEntities("- Setting &#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3648;&#3611;&#3621;&#3637;&#3656;&#3618;&#3609;&#3605;&#3629;&#3609;&#3648;&#3611;&#3621;&#3637;&#3656;&#3618;&#3609;&#3619;&#3640;&#3656;&#3609;\n- &#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3652;&#3617;&#3656;&#3649;&#3592;&#3657;&#3591; alarm\n- &#3588;&#3623;&#3634;&#3617;&#3604;&#3633;&#3609;&#3618;&#3633;&#3591;&#3629;&#3618;&#3641;&#3656;&#3651;&#3609;&#3588;&#3656;&#3634;&#3585;&#3635;&#3627;&#3609;&#3604;"),
+      materialNotes: fromEntities("- &#3648;&#3611;&#3621;&#3637;&#3656;&#3618;&#3609; material lot &#3605;&#3629;&#3609;&#3648;&#3594;&#3657;&#3634;\n- &#3652;&#3617;&#3656;&#3614;&#3610;&#3588;&#3619;&#3634;&#3610;&#3594;&#3639;&#3657;&#3609;\n- &#3626;&#3637;&#3648;&#3617;&#3655;&#3604;&#3611;&#3585;&#3605;&#3636;"),
+      methodNotes: fromEntities("- &#3611;&#3619;&#3633;&#3610; condition &#3649;&#3621;&#3657;&#3623; 1 &#3588;&#3619;&#3633;&#3657;&#3591;\n- &#3618;&#3633;&#3591;&#3652;&#3617;&#3656;&#3652;&#3604;&#3657;&#3605;&#3619;&#3623;&#3592;&#3588;&#3656;&#3634;&#3585;&#3656;&#3629;&#3609;&#3607;&#3604;&#3621;&#3629;&#3591;\n- &#3586;&#3629; ENG &#3618;&#3639;&#3609;&#3618;&#3633;&#3609; standard condition"),
+      sheetStatus: SENT_STATUS,
+      engNote: fromEntities("&#3586;&#3629;&#3651;&#3627;&#3657; ENG &#3648;&#3607;&#3637;&#3618;&#3610;&#3588;&#3656;&#3634; standard condition &#3586;&#3629;&#3591; U12/14 &#3649;&#3621;&#3632;&#3605;&#3619;&#3623;&#3592;&#3626;&#3629;&#3610;&#3626;&#3636;&#3585;&#3649;&#3617;&#3656;&#3614;&#3636;&#3617;&#3614;&#3660;"),
       createdAt: new Date(Date.now() - 3600000).toISOString(),
       updatedAt: new Date(Date.now() - 3600000).toISOString()
     }
@@ -94,7 +89,6 @@ document.getElementById("clearButton").addEventListener("click", () => {
 
 document.getElementById("exportButton").addEventListener("click", exportCsv);
 document.getElementById("printButton").addEventListener("click", () => window.print());
-searchInput.addEventListener("input", render);
 window.addEventListener("hashchange", renderRoute);
 
 function readForm() {
@@ -112,16 +106,6 @@ function readForm() {
     sheetStatus: SENT_STATUS,
     engNote: clean(data.get("engNote"))
   };
-}
-
-function fillForm(sheet) {
-  activeId = sheet.id;
-  for (const [key, value] of Object.entries(sheet)) {
-    const field = form.elements.namedItem(key);
-    if (field) field.value = value ?? "";
-  }
-  render();
-  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function loadState() {
@@ -147,19 +131,7 @@ function render() {
 }
 
 function filteredSheets() {
-  const query = searchInput.value.trim().toLowerCase();
-  if (!query) return state.sheets;
-  return state.sheets.filter((sheet) => [
-    sheet.mfg,
-    sheet.model,
-    sheet.machine,
-    sheet.problem,
-    sheet.manNotes,
-    sheet.machineNotes,
-    sheet.materialNotes,
-    sheet.methodNotes,
-    sheet.sheetStatus
-  ].join(" ").toLowerCase().includes(query));
+  return state.sheets;
 }
 
 function renderMetrics() {
@@ -174,18 +146,12 @@ function renderList(rows) {
     return;
   }
   sheetList.innerHTML = rows.map((sheet) => `
-    <button class="sheet-card ${sheet.id === activeId ? "is-active" : ""}" type="button" data-id="${sheet.id}">
+    <article class="sheet-card">
       <strong>${escapeHtml(sheet.mfg)} / ${escapeHtml(sheet.model)}</strong>
       <span>${escapeHtml(sheet.machine)}</span>
       <span>${escapeHtml(formatDate(sheet.updatedAt))}</span>
-    </button>
+    </article>
   `).join("");
-  sheetList.querySelectorAll("[data-id]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const sheet = state.sheets.find((item) => item.id === button.dataset.id);
-      if (sheet) fillForm(sheet);
-    });
-  });
 }
 
 function renderTable(rows) {
@@ -292,37 +258,17 @@ function setSyncStatus(message) {
 function resetDefaults() {
 }
 
-function resultClass(result) {
-  if (result === "Improved") return "success";
-  if (result === "Worse") return "fail";
-  if (result === "Need analysis") return "wait";
-  return "";
-}
-
-function displayStatus(status) {
-  const map = {
-    Submitted: th.sent,
-    "Ready for ENG": th.sent
-  };
-  return map[status] || status;
-}
-
 function renderRoute() {
-  const isDataPage = window.location.hash === "#submitted";
-  formPage.hidden = isDataPage;
-  dataPage.hidden = !isDataPage;
-  formTab.classList.toggle("is-active", !isDataPage);
-  dataTab.classList.toggle("is-active", isDataPage);
-}
-
-function displayResult(result) {
-  const map = {
-    Improved: th.improved,
-    "No change": th.noChange,
-    Worse: th.worse,
-    "Need analysis": th.needAnalysis
-  };
-  return map[result] || result;
+  const route = window.location.hash;
+  const isForm = route === "#form";
+  const isData = route === "#submitted";
+  homePage.hidden = isForm || isData;
+  formPage.hidden = !isForm;
+  dataPage.hidden = !isData;
+  document.body.classList.toggle("home-route", !isForm && !isData);
+  document.body.classList.toggle("form-route", isForm);
+  document.body.classList.toggle("data-route", isData);
+  document.title = isForm ? th.formTitle : isData ? th.submittedTitle : "4 M Worksheet";
 }
 
 function fromEntities(value) {
