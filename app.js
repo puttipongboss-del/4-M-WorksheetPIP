@@ -13,6 +13,7 @@ const sheetList = document.getElementById("sheetList");
 const sheetTableBody = document.getElementById("sheetTableBody");
 const emptyState = document.getElementById("emptyState");
 const syncStatus = document.getElementById("syncStatus");
+const dataStatus = document.getElementById("dataStatus");
 const th = {
   noMatchingSheet: fromEntities("&#3652;&#3617;&#3656;&#3614;&#3610;&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3637;&#3656;&#3605;&#3619;&#3591;&#3585;&#3633;&#3610;&#3585;&#3634;&#3619;&#3588;&#3657;&#3609;&#3627;&#3634;"),
   no4MNote: fromEntities("&#3618;&#3633;&#3591;&#3652;&#3617;&#3656;&#3617;&#3637;&#3610;&#3633;&#3609;&#3607;&#3638;&#3585; 4M"),
@@ -21,6 +22,10 @@ const th = {
   syncing: fromEntities("&#3585;&#3635;&#3621;&#3633;&#3591;&#3626;&#3656;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3648;&#3586;&#3657;&#3634; Google Sheet..."),
   synced: fromEntities("&#3626;&#3656;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3649;&#3621;&#3657;&#3623; &#3585;&#3619;&#3640;&#3603;&#3634;&#3605;&#3619;&#3623;&#3592;&#3607;&#3637;&#3656; Google Sheet"),
   syncFailed: fromEntities("&#3626;&#3656;&#3591;&#3652;&#3617;&#3656;&#3626;&#3635;&#3648;&#3619;&#3655;&#3592; &#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3618;&#3633;&#3591;&#3648;&#3585;&#3655;&#3610;&#3651;&#3609;&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3609;&#3637;&#3657;"),
+  loadingSheet: fromEntities("&#3585;&#3635;&#3621;&#3633;&#3591;&#3604;&#3638;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3592;&#3634;&#3585; Google Sheet..."),
+  loadedSheet: fromEntities("&#3604;&#3638;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3621;&#3656;&#3634;&#3626;&#3640;&#3604;&#3592;&#3634;&#3585; Google Sheet &#3649;&#3621;&#3657;&#3623;"),
+  loadSheetFailed: fromEntities("&#3604;&#3638;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3592;&#3634;&#3585; Google Sheet &#3652;&#3617;&#3656;&#3626;&#3635;&#3648;&#3619;&#3655;&#3592; &#3585;&#3635;&#3621;&#3633;&#3591;&#3649;&#3626;&#3604;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3651;&#3609;&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3609;&#3637;&#3657;"),
+  readOnlyHint: fromEntities("&#3627;&#3609;&#3657;&#3634;&#3609;&#3637;&#3657;&#3651;&#3594;&#3657;&#3604;&#3641;&#3612;&#3621;&#3648;&#3607;&#3656;&#3634;&#3609;&#3633;&#3657;&#3609; &#3652;&#3617;&#3656;&#3617;&#3637;&#3594;&#3656;&#3629;&#3591;&#3651;&#3627;&#3657;&#3585;&#3619;&#3629;&#3585;&#3649;&#3585;&#3657;&#3652;&#3586;"),
   clearConfirm: fromEntities("&#3605;&#3657;&#3629;&#3591;&#3585;&#3634;&#3619;&#3621;&#3657;&#3634;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3633;&#3657;&#3591;&#3627;&#3617;&#3604;&#3651;&#3609;&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3609;&#3637;&#3657;&#3651;&#3594;&#3656;&#3652;&#3627;&#3617;"),
   submittedTitle: fromEntities("&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3607;&#3637;&#3656;&#3626;&#3656;&#3591;&#3652;&#3611;&#3649;&#3621;&#3657;&#3623;"),
   formTitle: fromEntities("&#3585;&#3619;&#3629;&#3585;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621; 4M")
@@ -89,7 +94,11 @@ document.getElementById("clearButton").addEventListener("click", () => {
 
 document.getElementById("exportButton").addEventListener("click", exportCsv);
 document.getElementById("printButton").addEventListener("click", () => window.print());
-window.addEventListener("hashchange", renderRoute);
+document.getElementById("refreshButton").addEventListener("click", () => loadSheetsFromGoogle());
+window.addEventListener("hashchange", () => {
+  renderRoute();
+  if (window.location.hash === "#submitted") loadSheetsFromGoogle();
+});
 
 function readForm() {
   const data = new FormData(form);
@@ -240,10 +249,99 @@ async function syncSheetToGoogle(sheet) {
       })
     });
     setSyncStatus(th.synced);
+    if (window.location.hash === "#submitted") {
+      setTimeout(() => loadSheetsFromGoogle(), 800);
+    }
   } catch (error) {
     setSyncStatus(th.syncFailed);
     console.warn("Google Sheet sync failed. Data is still saved locally.", error);
   }
+}
+
+async function loadSheetsFromGoogle() {
+  if (!GOOGLE_SCRIPT_URL) {
+    setDataStatus(th.notConnected);
+    return;
+  }
+  try {
+    setDataStatus(th.loadingSheet);
+    const payload = await jsonp(`${GOOGLE_SCRIPT_URL}?action=listWorksheets`);
+    if (!payload || payload.ok === false) {
+      throw new Error(payload && payload.error ? payload.error : "Google Sheet returned no data");
+    }
+    mergeSheets(payload.rows || []);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    render();
+    setDataStatus(th.loadedSheet);
+  } catch (error) {
+    setDataStatus(th.loadSheetFailed);
+    console.warn("Google Sheet load failed. Showing local data instead.", error);
+  }
+}
+
+function mergeSheets(rows) {
+  const byId = new Map(state.sheets.map((sheet) => [sheet.id, sheet]));
+  rows.map(normalizeSheet).forEach((sheet) => {
+    if (!sheet.id) return;
+    const local = byId.get(sheet.id);
+    byId.set(sheet.id, newerSheet(local, sheet));
+  });
+  state.sheets = [...byId.values()].sort((a, b) => {
+    return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+  });
+}
+
+function normalizeSheet(sheet) {
+  return {
+    id: clean(sheet.id),
+    createdAt: clean(sheet.createdAt),
+    updatedAt: clean(sheet.updatedAt),
+    mfg: clean(sheet.mfg),
+    model: clean(sheet.model),
+    machine: clean(sheet.machine),
+    collector: clean(sheet.collector),
+    problem: clean(sheet.problem),
+    manNotes: clean(sheet.manNotes),
+    machineNotes: clean(sheet.machineNotes),
+    materialNotes: clean(sheet.materialNotes),
+    methodNotes: clean(sheet.methodNotes),
+    sheetStatus: clean(sheet.sheetStatus) || SENT_STATUS,
+    engNote: clean(sheet.engNote)
+  };
+}
+
+function newerSheet(local, remote) {
+  if (!local) return remote;
+  const localTime = new Date(local.updatedAt || local.createdAt || 0).getTime();
+  const remoteTime = new Date(remote.updatedAt || remote.createdAt || 0).getTime();
+  return remoteTime >= localTime ? { ...local, ...remote } : local;
+}
+
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `fourMCallback_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const script = document.createElement("script");
+    const separator = url.includes("?") ? "&" : "?";
+    script.src = `${url}${separator}callback=${callbackName}`;
+    script.async = true;
+
+    const cleanup = () => {
+      delete window[callbackName];
+      script.remove();
+    };
+
+    window[callbackName] = (payload) => {
+      cleanup();
+      resolve(payload);
+    };
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("JSONP request failed"));
+    };
+
+    document.head.appendChild(script);
+  });
 }
 
 function renderSyncStatus() {
@@ -253,6 +351,10 @@ function renderSyncStatus() {
 
 function setSyncStatus(message) {
   if (syncStatus) syncStatus.textContent = message;
+}
+
+function setDataStatus(message) {
+  if (dataStatus) dataStatus.textContent = message || th.readOnlyHint;
 }
 
 function resetDefaults() {
@@ -269,6 +371,10 @@ function renderRoute() {
   document.body.classList.toggle("form-route", isForm);
   document.body.classList.toggle("data-route", isData);
   document.title = isForm ? th.formTitle : isData ? th.submittedTitle : "4 M Worksheet";
+  if (isData && dataStatus && !dataStatus.dataset.touched) {
+    dataStatus.dataset.touched = "true";
+    setDataStatus(th.readOnlyHint);
+  }
 }
 
 function fromEntities(value) {
@@ -309,3 +415,6 @@ function escapeHtml(value) {
 }
 
 render();
+if (window.location.hash === "#submitted") {
+  loadSheetsFromGoogle();
+}
