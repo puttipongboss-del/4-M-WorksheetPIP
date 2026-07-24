@@ -392,33 +392,68 @@ function renderMetrics(rows) {
 
 function renderList(rows) {
   if (!rows.length) {
-    sheetList.innerHTML = `<p class="empty-state">${escapeHtml(state.sheets.length ? th.noMatchingSheet : th.noSheetsYet)}</p>`;
+    sheetList.innerHTML = "";
     return;
   }
-  sheetList.innerHTML = rows.map((sheet) => `
-    <article class="sheet-card" data-id="${escapeHtml(sheet.id)}" tabindex="0">
-      <span class="card-status">${escapeHtml(sheet.sheetStatus || SENT_STATUS)}</span>
-      <strong>${escapeHtml(sheet.mfg)} / ${escapeHtml(sheet.model)}</strong>
-      <span>${escapeHtml(sheet.machine)}</span>
-      <span>${escapeHtml(formatDate(sheet.updatedAt))}</span>
+  sheetList.innerHTML = rows.map((sheet) => {
+    const status = sheet.sheetStatus || SENT_STATUS;
+    const isOk = status === SENT_STATUS;
+    const photoCount = countImages(sheet);
+    return `
+    <article class="sheet-card ${isOk ? "" : "status-pending"}" data-id="${escapeHtml(sheet.id)}" tabindex="0">
+      <span class="sheet-card-body">
+        <span class="sheet-card-top">
+          <strong>${escapeHtml(sheet.mfg)} / ${escapeHtml(sheet.model)}</strong>
+          <span class="status-pill ${isOk ? "" : "status-pending"}">${escapeHtml(status)}</span>
+        </span>
+        <span class="card-machine">${escapeHtml(sheet.machine)}</span>
+        <span class="card-problem">${escapeHtml(sheet.problem)}</span>
+        <span class="card-meta">
+          <span>${escapeHtml(formatDate(sheet.updatedAt))}</span>
+          ${photoCount ? `<span class="photo-count"><svg width="13" height="13"><use href="#i-camera"/></svg>${photoCount}</span>` : ""}
+        </span>
+      </span>
+      <span class="card-arrow"><svg width="16" height="16"><use href="#i-arrow-right"/></svg></span>
     </article>
-  `).join("");
+  `;
+  }).join("");
+}
+
+function countImages(sheet) {
+  return normalizeUrls(sheet.manImageUrls).length
+    + normalizeUrls(sheet.machineImageUrls).length
+    + normalizeUrls(sheet.materialImageUrls).length
+    + normalizeUrls(sheet.methodImageUrls).length;
+}
+
+function firstImageUrl(sheet) {
+  const groups = [sheet.manImageUrls, sheet.machineImageUrls, sheet.materialImageUrls, sheet.methodImageUrls];
+  for (const group of groups) {
+    const items = normalizeUrls(group);
+    if (items.length) return items[0];
+  }
+  return "";
 }
 
 function renderTable(rows) {
-  sheetTableBody.innerHTML = rows.map((sheet) => `
+  sheetTableBody.innerHTML = rows.map((sheet) => {
+    const status = sheet.sheetStatus || SENT_STATUS;
+    const isOk = status === SENT_STATUS;
+    const thumb = firstImageUrl(sheet);
+    return `
     <tr>
       <td>${formatDate(sheet.updatedAt)}</td>
-      <td><strong>${escapeHtml(sheet.mfg)} / ${escapeHtml(sheet.model)}</strong></td>
+      <td><strong>${escapeHtml(sheet.mfg)} / ${escapeHtml(sheet.model)}</strong><br><span class="status-pill ${isOk ? "" : "status-pending"}">${escapeHtml(status)}</span></td>
       <td>${escapeHtml(sheet.machine)}</td>
       <td>${escapeHtml(sheet.problem)}</td>
-      <td>${compactNotes(sheet)}</td>
+      <td>${thumb ? `<img class="row-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy">` : ""}${compactNotes(sheet)}</td>
       <td>${escapeHtml(sheet.collector)}<br><span class="muted">${escapeHtml(formatDate(sheet.updatedAt))}</span></td>
-      <td class="detail-cell"><button class="button secondary detail-button" type="button" data-id="${escapeHtml(sheet.id)}">${escapeHtml(th.detailButton)}</button></td>
+      <td class="detail-cell"><button class="button secondary detail-button" type="button" data-id="${escapeHtml(sheet.id)}"><svg width="14" height="14"><use href="#i-eye"/></svg>${escapeHtml(th.detailButton)}</button></td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
   emptyState.hidden = rows.length > 0;
-  emptyState.textContent = state.sheets.length ? th.noMatchingSheet : th.noSheetsYet;
+  emptyState.innerHTML = rows.length ? "" : `<span class="empty-state-icon"><svg width="22" height="22"><use href="#i-search"/></svg></span><br>${escapeHtml(state.sheets.length ? th.noMatchingSheet : th.noSheetsYet)}`;
 }
 
 function compactNotes(sheet) {
