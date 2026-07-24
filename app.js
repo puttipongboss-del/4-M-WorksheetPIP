@@ -342,6 +342,8 @@ async function syncSheetToGoogle(sheet) {
     renderSyncStatus();
     return;
   }
+  const { imageUploads, ...sheetWithoutImages } = sheet;
+  let textSynced = false;
   try {
     setSyncStatus(th.syncing);
     await fetch(GOOGLE_SCRIPT_URL, {
@@ -350,17 +352,67 @@ async function syncSheetToGoogle(sheet) {
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
         action: "upsertWorksheet",
-        sheet
+        sheet: sheetWithoutImages
       })
     });
+    textSynced = true;
     setSyncStatus(th.synced);
-    if (window.location.hash === "#submitted") {
-      setTimeout(() => loadSheetsFromGoogle(), 800);
-    }
   } catch (error) {
     setSyncStatus(th.syncFailed);
     console.warn("Google Sheet sync failed. Data is still saved locally.", error);
   }
+
+  // Photos are uploaded one at a time, after the text data, so a slow or
+  // failing photo can never take the worksheet's text data down with it.
+  if (textSynced && imageUploads) {
+    await uploadWorksheetImages(sheet.id, sheet, imageUploads);
+  }
+
+  if (window.location.hash === "#submitted") {
+    setTimeout(() => loadSheetsFromGoogle(), 800);
+  }
+}
+
+const IMAGE_TOPIC_BY_UPLOAD_KEY = {
+  manImages: "man",
+  machineImages: "machine",
+  materialImages: "material",
+  methodImages: "method"
+};
+
+async function uploadWorksheetImages(worksheetId, sheet, imageUploads) {
+  const items = [];
+  IMAGE_FIELDS.forEach((field) => {
+    (imageUploads[field.upload] || []).forEach((image) => {
+      items.push({ uploadKey: field.upload, image });
+    });
+  });
+
+  for (const item of items) {
+    try {
+      await uploadSingleImage(worksheetId, sheet, item.uploadKey, item.image);
+    } catch (error) {
+      // One bad photo should not stop the rest from uploading.
+      console.warn("Image upload failed (continuing with the rest):", error);
+    }
+  }
+}
+
+async function uploadSingleImage(worksheetId, sheet, uploadKey, image) {
+  await fetch(GOOGLE_SCRIPT_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      action: "uploadWorksheetImage",
+      worksheetId,
+      topic: IMAGE_TOPIC_BY_UPLOAD_KEY[uploadKey] || uploadKey,
+      mfg: sheet.mfg,
+      model: sheet.model,
+      machine: sheet.machine,
+      image
+    })
+  });
 }
 
 async function loadSheetsFromGoogle() {
