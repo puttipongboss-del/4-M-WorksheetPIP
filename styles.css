@@ -329,10 +329,22 @@ textarea {
 
 .report-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   width: min(1280px, 100%);
   margin-inline: auto;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .report-summary article,
@@ -364,11 +376,73 @@ textarea {
   margin-bottom: 16px;
 }
 
+.filter-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(140px, 1fr)) auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(236, 233, 223, 0.5);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.filter-bar input,
+.filter-bar select {
+  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 9px 10px;
+}
+
+.filter-bar input:focus,
+.filter-bar select:focus {
+  outline: 2px solid rgba(25, 79, 69, 0.25);
+  outline-offset: 1px;
+}
+
+@media (max-width: 980px) {
+  .filter-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .filter-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
 .sheet-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
+}
+
+.sheet-card {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.sheet-card:hover,
+.sheet-card:focus-visible {
+  border-color: var(--primary);
+  box-shadow: var(--shadow);
+}
+
+.sheet-card .card-status {
+  justify-self: start;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--primary);
+  background: rgba(24, 86, 75, 0.1);
+  border-radius: 999px;
+  padding: 3px 9px;
 }
 
 .sheet-card {
@@ -403,6 +477,226 @@ th {
 .empty-state {
   margin: 18px 0 0;
   text-align: center;
+}
+
+.detail-button {
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+td.detail-cell {
+  text-align: right;
+}
+
+/* Full-screen detail modal */
+.detail-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: stretch;
+  background: rgba(20, 22, 20, 0.55);
+  padding: clamp(0px, 3vw, 32px);
+}
+
+.detail-modal[hidden] {
+  display: none !important;
+}
+
+.detail-modal-inner {
+  width: min(1100px, 100%);
+  max-height: 100%;
+  margin-inline: auto;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--paper);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.detail-modal-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--text);
+  background: var(--paper);
+}
+
+.detail-modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-modal-body {
+  overflow-y: auto;
+  padding: 24px;
+  display: grid;
+  gap: 18px;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 37px, var(--paper-line) 38px);
+}
+
+.detail-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.detail-meta div {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.detail-meta span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+
+.detail-block {
+  background: rgba(255, 253, 247, 0.86);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.detail-block h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.detail-block p {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.detail-note-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  .detail-note-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-modal {
+    padding: 0;
+  }
+  .detail-modal-inner {
+    border-radius: 0;
+    max-height: 100vh;
+    height: 100vh;
+  }
+}
+
+.detail-image-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.detail-image-gallery button {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  width: 96px;
+  height: 96px;
+  cursor: zoom-in;
+  background: var(--surface);
+}
+
+.detail-image-gallery img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Photo lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: clamp(16px, 4vw, 48px);
+  background: rgba(10, 12, 10, 0.88);
+}
+
+.lightbox[hidden] {
+  display: none !important;
+}
+
+.lightbox-figure {
+  grid-column: 2;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  max-height: 100%;
+}
+
+.lightbox-figure img {
+  max-width: 100%;
+  max-height: 78vh;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #000;
+}
+
+.lightbox-figure figcaption {
+  color: #fff;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lightbox-nav {
+  background: rgba(255, 255, 255, 0.12);
+  border: 0;
+  color: #fff;
+  font-size: 2.2rem;
+  line-height: 1;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.lightbox-nav:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+body.modal-open {
+  overflow: hidden;
 }
 
 @media (max-width: 980px) {
@@ -443,7 +737,10 @@ th {
   .app-header,
   .page-toolbar,
   .report-page,
-  .form-actions {
+  .form-actions,
+  .detail-modal,
+  .lightbox,
+  .filter-bar {
     display: none;
   }
 
