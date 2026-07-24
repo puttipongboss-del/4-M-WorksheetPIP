@@ -112,13 +112,14 @@
         <a class="button secondary" href="#">&#3585;&#3621;&#3633;&#3610;&#3627;&#3609;&#3657;&#3634;&#3649;&#3619;&#3585;</a>
         <button class="button secondary" id="refreshButton" type="button">&#3604;&#3638;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3621;&#3656;&#3634;&#3626;&#3640;&#3604;</button>
         <button class="button secondary" id="seedDataButton" type="button">&#3648;&#3605;&#3636;&#3617;&#3605;&#3633;&#3623;&#3629;&#3618;&#3656;&#3634;&#3591;</button>
-        <button class="button secondary" id="exportButton" type="button">&#3626;&#3656;&#3591;&#3629;&#3629;&#3585; CSV</button>
+        <button class="button secondary" id="exportButton" type="button">&#3626;&#3656;&#3591;&#3629;&#3629;&#3585; CSV (&#3605;&#3634;&#3617;&#3605;&#3633;&#3623;&#3585;&#3619;&#3629;&#3591;)</button>
         <button class="button danger" id="clearButton" type="button">&#3621;&#3657;&#3634;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;</button>
       </div>
 
       <section class="report-summary" aria-label="summary">
-        <article><span>&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3637;&#3656;&#3626;&#3656;&#3591;&#3649;&#3621;&#3657;&#3623;</span><strong id="sheetCount">0</strong></article>
-        <article><span>&#3648;&#3585;&#3655;&#3610;&#3651;&#3609;&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;</span><strong id="localCount">0</strong></article>
+        <article><span>&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3637;&#3656;&#3626;&#3656;&#3591;&#3607;&#3633;&#3657;&#3591;&#3627;&#3617;&#3604;</span><strong id="sheetCount">0</strong></article>
+        <article><span>&#3649;&#3626;&#3604;&#3591;&#3611;&#3641;&#3621;&#3605;&#3634;&#3617;&#3605;&#3633;&#3623;&#3585;&#3619;&#3629;&#3591;</span><strong id="filteredCount">0</strong></article>
+        <article><span>&#3651;&#3610;&#3585;&#3634;&#3619;&#3651;&#3627;&#3617;&#3656;&#3651;&#3609; 7 &#3623;&#3633;&#3609;</span><strong id="weekCount">0</strong></article>
         <article><span>Google Sheet</span><strong id="googleMode">ON</strong></article>
       </section>
 
@@ -127,6 +128,32 @@
           <h2>&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3607;&#3637;&#3656;&#3626;&#3656;&#3591;&#3652;&#3611;&#3649;&#3621;&#3657;&#3623;</h2>
           <p id="dataStatus">&#3627;&#3609;&#3657;&#3634;&#3609;&#3637;&#3657;&#3651;&#3594;&#3657;&#3604;&#3641;&#3612;&#3621;&#3648;&#3607;&#3656;&#3634;&#3609;&#3633;&#3657;&#3609; &#3652;&#3617;&#3656;&#3617;&#3637;&#3594;&#3656;&#3629;&#3591;&#3651;&#3627;&#3657;&#3585;&#3619;&#3629;&#3585;&#3649;&#3585;&#3657;&#3652;&#3586;</p>
         </div>
+
+        <div class="filter-bar">
+          <label class="filter-search">
+            <span class="sr-only">&#3588;&#3657;&#3609;&#3627;&#3634;</span>
+            <input type="search" id="searchInput" placeholder="&#3588;&#3657;&#3609;&#3627;&#3634; MFG, &#3619;&#3640;&#3656;&#3609;, &#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;, &#3611;&#3633;&#3597;&#3627;&#3634;, &#3612;&#3641;&#3657;&#3648;&#3585;&#3655;&#3610;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;...">
+          </label>
+          <label class="filter-select">
+            <span class="sr-only">MFG</span>
+            <select id="filterMfg"><option value="">MFG &#3607;&#3633;&#3657;&#3591;&#3627;&#3617;&#3604;</option></select>
+          </label>
+          <label class="filter-select">
+            <span class="sr-only">&#3626;&#3634;&#3606;&#3634;&#3609;&#3632;</span>
+            <select id="filterStatus"><option value="">&#3626;&#3634;&#3606;&#3634;&#3609;&#3632;&#3607;&#3633;&#3657;&#3591;&#3627;&#3617;&#3604;</option></select>
+          </label>
+          <label class="filter-select">
+            <span class="sr-only">&#3648;&#3619;&#3637;&#3618;&#3591;&#3621;&#3635;&#3604;&#3633;&#3610;</span>
+            <select id="sortBy">
+              <option value="updatedAt_desc">&#3621;&#3656;&#3634;&#3626;&#3640;&#3604;&#3585;&#3656;&#3629;&#3609;</option>
+              <option value="updatedAt_asc">&#3648;&#3585;&#3656;&#3634;&#3626;&#3640;&#3604;&#3585;&#3656;&#3629;&#3609;</option>
+              <option value="mfg_asc">MFG (A-Z)</option>
+              <option value="machine_asc">&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591; (A-Z)</option>
+            </select>
+          </label>
+          <button class="button secondary" id="resetFilterButton" type="button">&#3621;&#3657;&#3634;&#3591;&#3605;&#3633;&#3623;&#3585;&#3619;&#3629;&#3591;</button>
+        </div>
+
         <div class="sheet-list data-cards" id="sheetList"></div>
         <div class="table-wrap">
           <table>
@@ -138,6 +165,7 @@
                 <th>&#3611;&#3633;&#3597;&#3627;&#3634;</th>
                 <th>&#3610;&#3633;&#3609;&#3607;&#3638;&#3585; 4M</th>
                 <th>&#3612;&#3641;&#3657;&#3648;&#3585;&#3655;&#3610;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="sheetTableBody"></tbody>
@@ -147,6 +175,32 @@
       </section>
     </section>
   </main>
+
+  <div class="detail-modal" id="detailModal" hidden>
+    <div class="detail-modal-inner" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <div class="detail-modal-header">
+        <div>
+          <p class="eyebrow" id="detailEyebrow">4M Worksheet</p>
+          <h2 id="detailTitle">&nbsp;</h2>
+        </div>
+        <div class="detail-modal-actions">
+          <button class="button secondary" id="detailPrintButton" type="button">&#3614;&#3636;&#3617;&#3614;&#3660;&#3651;&#3610;&#3609;&#3637;&#3657;</button>
+          <button class="button secondary" id="detailCloseButton" type="button" aria-label="&#3611;&#3636;&#3604;">&times; &#3611;&#3636;&#3604;</button>
+        </div>
+      </div>
+      <div class="detail-modal-body" id="detailBody"></div>
+    </div>
+  </div>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lightbox-close" id="lightboxClose" type="button" aria-label="&#3611;&#3636;&#3604;">&times;</button>
+    <button class="lightbox-nav lightbox-prev" id="lightboxPrev" type="button" aria-label="&#3585;&#3656;&#3629;&#3609;&#3627;&#3609;&#3657;&#3634;">&#8249;</button>
+    <figure class="lightbox-figure">
+      <img id="lightboxImage" src="" alt="">
+      <figcaption id="lightboxCaption"></figcaption>
+    </figure>
+    <button class="lightbox-nav lightbox-next" id="lightboxNext" type="button" aria-label="&#3606;&#3633;&#3604;&#3652;&#3611;">&#8250;</button>
+  </div>
 
   <script src="config.js"></script>
   <script src="app.js"></script>
