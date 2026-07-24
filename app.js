@@ -1,6 +1,15 @@
 const STORAGE_KEY = "fourMWorksheetForEng.v1";
 const GOOGLE_SCRIPT_URL = window.APP_CONFIG?.googleScriptUrl || "";
 const SENT_STATUS = "Submitted";
+const MAX_IMAGES_PER_TOPIC = 3;
+const IMAGE_MAX_SIDE = 1280;
+const IMAGE_QUALITY = 0.72;
+const IMAGE_FIELDS = [
+  { input: "manImages", upload: "manImages", urls: "manImageUrls" },
+  { input: "machineImages", upload: "machineImages", urls: "machineImageUrls" },
+  { input: "materialImages", upload: "materialImages", urls: "materialImageUrls" },
+  { input: "methodImages", upload: "methodImages", urls: "methodImageUrls" }
+];
 
 const state = loadState();
 let activeId = null;
@@ -31,26 +40,38 @@ const th = {
   formTitle: fromEntities("&#3585;&#3619;&#3629;&#3585;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621; 4M")
 };
 
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const sheet = readForm();
-  let savedSheet;
-  if (activeId) {
-    const index = state.sheets.findIndex((item) => item.id === activeId);
-    if (index >= 0) {
-      savedSheet = { ...state.sheets[index], ...sheet, updatedAt: new Date().toISOString() };
-      state.sheets[index] = savedSheet;
+  const submitButton = form.querySelector("button[type='submit']");
+  if (submitButton) submitButton.disabled = true;
+  try {
+    const sheet = await readForm();
+    const localSheet = stripImageUploads(sheet);
+    let savedSheet;
+    if (activeId) {
+      const index = state.sheets.findIndex((item) => item.id === activeId);
+      if (index >= 0) {
+        savedSheet = { ...state.sheets[index], ...localSheet, updatedAt: new Date().toISOString() };
+        state.sheets[index] = savedSheet;
+      }
+    } else {
+      savedSheet = { ...localSheet, id: createId(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      state.sheets.unshift(savedSheet);
     }
-  } else {
-    savedSheet = { ...sheet, id: createId(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    state.sheets.unshift(savedSheet);
+    if (savedSheet) {
+      sheet.id = savedSheet.id;
+      sheet.createdAt = savedSheet.createdAt;
+      sheet.updatedAt = savedSheet.updatedAt;
+    }
+    activeId = null;
+    form.reset();
+    resetDefaults();
+    saveAndRender();
+    if (savedSheet) syncSheetToGoogle(sheet);
+    window.location.hash = "submitted";
+  } finally {
+    if (submitButton) submitButton.disabled = false;
   }
-  activeId = null;
-  form.reset();
-  resetDefaults();
-  saveAndRender();
-  if (savedSheet) syncSheetToGoogle(savedSheet);
-  window.location.hash = "submitted";
 });
 
 document.getElementById("newSheetButton").addEventListener("click", () => {
@@ -100,9 +121,10 @@ window.addEventListener("hashchange", () => {
   if (window.location.hash === "#submitted") loadSheetsFromGoogle();
 });
 
-function readForm() {
+async function readForm() {
   const data = new FormData(form);
-  return {
+  const imageUploads = await readImageUploads();
+  const sheet = {
     mfg: clean(data.get("mfg")),
     model: clean(data.get("model")),
     machine: clean(data.get("machine")),
@@ -115,6 +137,60 @@ function readForm() {
     sheetStatus: SENT_STATUS,
     engNote: clean(data.get("engNote"))
   };
+  if (Object.values(imageUploads).some((items) => items.length)) {
+    sheet.imageUploads = imageUploads;
+  }
+  return sheet;
+}
+
+async function readImageUploads() {
+  const result = {};
+  for (const field of IMAGE_FIELDS) {
+    const input = document.getElementById(field.input);
+    const files = [...(input?.files || [])]
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, MAX_IMAGES_PER_TOPIC);
+    result[field.upload] = await Promise.all(files.map((file) => imageFileToPayload(file)));
+  }
+  return result;
+}
+
+async function imageFileToPayload(file) {
+  const dataUrl = await resizeImage(file);
+  return {
+    name: safeFileName(file.name || "photo.jpg"),
+    type: dataUrl.slice(5, dataUrl.indexOf(";")) || "image/jpeg",
+    dataUrl
+  };
+}
+
+function resizeImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => resolve(String(reader.result || ""));
+      image.onload = () => {
+        const scale = Math.min(1, IMAGE_MAX_SIDE / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", IMAGE_QUALITY));
+      };
+      image.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function stripImageUploads(sheet) {
+  const { imageUploads, ...rest } = sheet;
+  return rest;
 }
 
 function loadState() {
@@ -179,13 +255,34 @@ function renderTable(rows) {
 
 function compactNotes(sheet) {
   const parts = [
-    [fromEntities("&#3649;&#3617;&#3656;&#3614;&#3636;&#3617;&#3614;&#3660;"), sheet.manNotes],
-    [fromEntities("&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3592;&#3633;&#3585;&#3619;"), sheet.machineNotes],
-    [fromEntities("&#3648;&#3617;&#3655;&#3604;&#3614;&#3621;&#3634;&#3626;&#3605;&#3636;&#3585;"), sheet.materialNotes],
-    [fromEntities("&#3585;&#3619;&#3632;&#3610;&#3623;&#3609;&#3585;&#3634;&#3619;/&#3623;&#3636;&#3608;&#3637;&#3585;&#3634;&#3619;"), sheet.methodNotes]
-  ].filter(([, value]) => value);
+    [fromEntities("&#3649;&#3617;&#3656;&#3614;&#3636;&#3617;&#3614;&#3660;"), sheet.manNotes, sheet.manImageUrls],
+    [fromEntities("&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3592;&#3633;&#3585;&#3619;"), sheet.machineNotes, sheet.machineImageUrls],
+    [fromEntities("&#3648;&#3617;&#3655;&#3604;&#3614;&#3621;&#3634;&#3626;&#3605;&#3636;&#3585;"), sheet.materialNotes, sheet.materialImageUrls],
+    [fromEntities("&#3585;&#3619;&#3632;&#3610;&#3623;&#3609;&#3585;&#3634;&#3619;/&#3623;&#3636;&#3608;&#3637;&#3585;&#3634;&#3619;"), sheet.methodNotes, sheet.methodImageUrls]
+  ].filter(([, value, urls]) => value || normalizeUrls(urls).length);
   if (!parts.length) return `<span class="muted">${escapeHtml(th.no4MNote)}</span>`;
-  return parts.map(([label, value]) => `<strong>${label}:</strong> ${escapeHtml(shortText(value, 56))}`).join("<br>");
+  return parts.map(([label, value, urls]) => {
+    const note = value ? ` ${escapeHtml(shortText(value, 56))}` : "";
+    return `<strong>${label}:</strong>${note}${renderImageGallery(urls)}`;
+  }).join("<br>");
+}
+
+function renderImageGallery(urls) {
+  const items = normalizeUrls(urls);
+  if (!items.length) return "";
+  return `<div class="image-gallery">${items.map((url) => `
+    <a href="${escapeHtml(url)}" target="_blank" rel="noopener">
+      <img src="${escapeHtml(url)}" alt="4M photo" loading="lazy">
+    </a>
+  `).join("")}</div>`;
+}
+
+function normalizeUrls(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return String(value || "")
+    .split(/\n|,/)
+    .map((url) => url.trim())
+    .filter(Boolean);
 }
 
 function exportCsv() {
@@ -201,6 +298,10 @@ function exportCsv() {
     "machine_notes",
     "material_notes",
     "method_notes",
+    "man_image_urls",
+    "machine_image_urls",
+    "material_image_urls",
+    "method_image_urls",
     "sheet_status",
     "eng_note"
   ];
@@ -217,6 +318,10 @@ function exportCsv() {
       machine_notes: sheet.machineNotes,
       material_notes: sheet.materialNotes,
       method_notes: sheet.methodNotes,
+      man_image_urls: normalizeUrls(sheet.manImageUrls).join(" "),
+      machine_image_urls: normalizeUrls(sheet.machineImageUrls).join(" "),
+      material_image_urls: normalizeUrls(sheet.materialImageUrls).join(" "),
+      method_image_urls: normalizeUrls(sheet.methodImageUrls).join(" "),
       sheet_status: sheet.sheetStatus || SENT_STATUS,
       eng_note: sheet.engNote
     };
@@ -305,6 +410,10 @@ function normalizeSheet(sheet) {
     machineNotes: clean(sheet.machineNotes),
     materialNotes: clean(sheet.materialNotes),
     methodNotes: clean(sheet.methodNotes),
+    manImageUrls: normalizeUrls(sheet.manImageUrls),
+    machineImageUrls: normalizeUrls(sheet.machineImageUrls),
+    materialImageUrls: normalizeUrls(sheet.materialImageUrls),
+    methodImageUrls: normalizeUrls(sheet.methodImageUrls),
     sheetStatus: clean(sheet.sheetStatus) || SENT_STATUS,
     engNote: clean(sheet.engNote)
   };
@@ -398,6 +507,13 @@ function formatDate(value) {
 
 function clean(value) {
   return String(value ?? "").trim();
+}
+
+function safeFileName(value) {
+  return String(value || "photo.jpg")
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "photo.jpg";
 }
 
 function createId() {
