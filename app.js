@@ -13,6 +13,13 @@ const IMAGE_FIELDS = [
 
 const state = loadState();
 let activeId = null;
+let searchQuery = "";
+let filterMfg = "";
+let filterStatus = "";
+let sortKey = "updatedAt_desc";
+let currentDetailSheet = null;
+let currentGalleryImages = [];
+let currentGalleryIndex = 0;
 
 const form = document.getElementById("worksheetForm");
 const homePage = document.getElementById("homePage");
@@ -23,6 +30,30 @@ const sheetTableBody = document.getElementById("sheetTableBody");
 const emptyState = document.getElementById("emptyState");
 const syncStatus = document.getElementById("syncStatus");
 const dataStatus = document.getElementById("dataStatus");
+const searchInput = document.getElementById("searchInput");
+const filterMfgSelect = document.getElementById("filterMfg");
+const filterStatusSelect = document.getElementById("filterStatus");
+const sortBySelect = document.getElementById("sortBy");
+const resetFilterButton = document.getElementById("resetFilterButton");
+const detailModal = document.getElementById("detailModal");
+const detailBody = document.getElementById("detailBody");
+const detailTitle = document.getElementById("detailTitle");
+const detailPrintButton = document.getElementById("detailPrintButton");
+const detailCloseButton = document.getElementById("detailCloseButton");
+const lightbox = document.getElementById("lightbox");
+const lightboxImage = document.getElementById("lightboxImage");
+const lightboxCaption = document.getElementById("lightboxCaption");
+const lightboxClose = document.getElementById("lightboxClose");
+const lightboxPrev = document.getElementById("lightboxPrev");
+const lightboxNext = document.getElementById("lightboxNext");
+
+const topicLabels = {
+  man: fromEntities("&#3649;&#3617;&#3656;&#3614;&#3636;&#3617;&#3614;&#3660;"),
+  machine: fromEntities("&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3592;&#3633;&#3585;&#3619;"),
+  material: fromEntities("&#3648;&#3617;&#3655;&#3604;&#3614;&#3621;&#3634;&#3626;&#3605;&#3636;&#3585;"),
+  method: fromEntities("&#3585;&#3619;&#3632;&#3610;&#3623;&#3609;&#3585;&#3634;&#3619; / &#3623;&#3636;&#3608;&#3637;&#3585;&#3634;&#3619;")
+};
+
 const th = {
   noMatchingSheet: fromEntities("&#3652;&#3617;&#3656;&#3614;&#3610;&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3637;&#3656;&#3605;&#3619;&#3591;&#3585;&#3633;&#3610;&#3585;&#3634;&#3619;&#3588;&#3657;&#3609;&#3627;&#3634;"),
   no4MNote: fromEntities("&#3618;&#3633;&#3591;&#3652;&#3617;&#3656;&#3617;&#3637;&#3610;&#3633;&#3609;&#3607;&#3638;&#3585; 4M"),
@@ -37,7 +68,17 @@ const th = {
   readOnlyHint: fromEntities("&#3627;&#3609;&#3657;&#3634;&#3609;&#3637;&#3657;&#3651;&#3594;&#3657;&#3604;&#3641;&#3612;&#3621;&#3648;&#3607;&#3656;&#3634;&#3609;&#3633;&#3657;&#3609; &#3652;&#3617;&#3656;&#3617;&#3637;&#3594;&#3656;&#3629;&#3591;&#3651;&#3627;&#3657;&#3585;&#3619;&#3629;&#3585;&#3649;&#3585;&#3657;&#3652;&#3586;"),
   clearConfirm: fromEntities("&#3605;&#3657;&#3629;&#3591;&#3585;&#3634;&#3619;&#3621;&#3657;&#3634;&#3591;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3633;&#3657;&#3591;&#3627;&#3617;&#3604;&#3651;&#3609;&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;&#3609;&#3637;&#3657;&#3651;&#3594;&#3656;&#3652;&#3627;&#3617;"),
   submittedTitle: fromEntities("&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;&#3607;&#3637;&#3656;&#3626;&#3656;&#3591;&#3652;&#3611;&#3649;&#3621;&#3657;&#3623;"),
-  formTitle: fromEntities("&#3585;&#3619;&#3629;&#3585;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621; 4M")
+  formTitle: fromEntities("&#3585;&#3619;&#3629;&#3585;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621; 4M"),
+  detailButton: fromEntities("&#3604;&#3641;&#3619;&#3634;&#3618;&#3621;&#3632;&#3648;&#3629;&#3637;&#3618;&#3604;"),
+  mfgModel: fromEntities("MFG / &#3619;&#3640;&#3656;&#3609;"),
+  machineLabel: fromEntities("&#3648;&#3588;&#3619;&#3639;&#3656;&#3629;&#3591;/&#3626;&#3606;&#3634;&#3609;&#3637;"),
+  collectorLabel: fromEntities("&#3612;&#3641;&#3657;&#3648;&#3585;&#3655;&#3610;&#3586;&#3657;&#3629;&#3617;&#3641;&#3621;"),
+  dateLabel: fromEntities("&#3623;&#3633;&#3609;&#3607;&#3637;&#3656;&#3610;&#3633;&#3609;&#3607;&#3638;&#3585;"),
+  statusLabel: fromEntities("&#3626;&#3634;&#3606;&#3634;&#3609;&#3632;"),
+  problemLabel: fromEntities("&#3629;&#3634;&#3585;&#3634;&#3619;&#3611;&#3633;&#3597;&#3627;&#3634;"),
+  engNoteLabel: fromEntities("&#3627;&#3617;&#3634;&#3618;&#3648;&#3627;&#3605;&#3640; / &#3586;&#3657;&#3629;&#3588;&#3635;&#3586;&#3629;&#3591; ENG"),
+  noImageInTopic: fromEntities("&#3652;&#3617;&#3656;&#3617;&#3637;&#3619;&#3641;&#3611;&#3616;&#3634;&#3614;&#3649;&#3609;&#3610;"),
+  noSheetsYet: fromEntities("&#3618;&#3633;&#3591;&#3652;&#3617;&#3656;&#3617;&#3637;&#3651;&#3610;&#3591;&#3634;&#3609;&#3607;&#3637;&#3656;&#3610;&#3633;&#3609;&#3607;&#3638;&#3585;")
 };
 
 form.addEventListener("submit", async (event) => {
@@ -119,6 +160,80 @@ document.getElementById("refreshButton").addEventListener("click", () => loadShe
 window.addEventListener("hashchange", () => {
   renderRoute();
   if (window.location.hash === "#submitted") loadSheetsFromGoogle();
+});
+
+let searchDebounce = null;
+searchInput?.addEventListener("input", (event) => {
+  clearTimeout(searchDebounce);
+  const value = event.target.value;
+  searchDebounce = setTimeout(() => {
+    searchQuery = value;
+    render();
+  }, 180);
+});
+filterMfgSelect?.addEventListener("change", (event) => {
+  filterMfg = event.target.value;
+  render();
+});
+filterStatusSelect?.addEventListener("change", (event) => {
+  filterStatus = event.target.value;
+  render();
+});
+sortBySelect?.addEventListener("change", (event) => {
+  sortKey = event.target.value;
+  render();
+});
+resetFilterButton?.addEventListener("click", () => {
+  searchQuery = "";
+  filterMfg = "";
+  filterStatus = "";
+  sortKey = "updatedAt_desc";
+  if (searchInput) searchInput.value = "";
+  if (filterMfgSelect) filterMfgSelect.value = "";
+  if (filterStatusSelect) filterStatusSelect.value = "";
+  if (sortBySelect) sortBySelect.value = "updatedAt_desc";
+  render();
+});
+
+sheetTableBody.addEventListener("click", (event) => {
+  const button = event.target.closest(".detail-button");
+  if (button) openDetail(button.dataset.id);
+});
+sheetList.addEventListener("click", (event) => {
+  const card = event.target.closest(".sheet-card");
+  if (card) openDetail(card.dataset.id);
+});
+sheetList.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const card = event.target.closest(".sheet-card");
+  if (!card) return;
+  event.preventDefault();
+  openDetail(card.dataset.id);
+});
+detailBody.addEventListener("click", (event) => {
+  const imageButton = event.target.closest("[data-gallery-index]");
+  if (imageButton) openLightbox(Number(imageButton.dataset.galleryIndex));
+});
+detailCloseButton?.addEventListener("click", closeDetail);
+detailModal?.addEventListener("click", (event) => {
+  if (event.target === detailModal) closeDetail();
+});
+detailPrintButton?.addEventListener("click", () => {
+  if (currentDetailSheet) printSingleSheet(currentDetailSheet);
+});
+lightboxClose?.addEventListener("click", closeLightbox);
+lightboxNext?.addEventListener("click", showNextImage);
+lightboxPrev?.addEventListener("click", showPrevImage);
+lightbox?.addEventListener("click", (event) => {
+  if (event.target === lightbox) closeLightbox();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (lightbox && !lightbox.hidden) {
+    closeLightbox();
+  } else if (detailModal && !detailModal.hidden) {
+    closeDetail();
+  }
 });
 
 async function readForm() {
@@ -207,8 +322,9 @@ function saveAndRender() {
 }
 
 function render() {
+  populateFilterOptions();
   const rows = filteredSheets();
-  renderMetrics();
+  renderMetrics(rows);
   renderList(rows);
   renderTable(rows);
   renderSyncStatus();
@@ -216,22 +332,72 @@ function render() {
 }
 
 function filteredSheets() {
-  return state.sheets;
+  let rows = [...state.sheets];
+  if (searchQuery.trim()) {
+    const query = searchQuery.trim().toLowerCase();
+    rows = rows.filter((sheet) => [
+      sheet.mfg, sheet.model, sheet.machine, sheet.collector, sheet.problem,
+      sheet.manNotes, sheet.machineNotes, sheet.materialNotes, sheet.methodNotes, sheet.engNote
+    ].some((value) => String(value || "").toLowerCase().includes(query)));
+  }
+  if (filterMfg) rows = rows.filter((sheet) => sheet.mfg === filterMfg);
+  if (filterStatus) rows = rows.filter((sheet) => (sheet.sheetStatus || SENT_STATUS) === filterStatus);
+  return sortRows(rows, sortKey);
 }
 
-function renderMetrics() {
+function sortRows(rows, key) {
+  const sorted = [...rows];
+  switch (key) {
+    case "updatedAt_asc":
+      sorted.sort((a, b) => new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0));
+      break;
+    case "mfg_asc":
+      sorted.sort((a, b) => String(a.mfg || "").localeCompare(String(b.mfg || "")) || String(a.model || "").localeCompare(String(b.model || "")));
+      break;
+    case "machine_asc":
+      sorted.sort((a, b) => String(a.machine || "").localeCompare(String(b.machine || "")));
+      break;
+    case "updatedAt_desc":
+    default:
+      sorted.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+  }
+  return sorted;
+}
+
+function populateFilterOptions() {
+  if (filterMfgSelect) {
+    const options = [...new Set(state.sheets.map((sheet) => sheet.mfg).filter(Boolean))].sort();
+    const current = filterMfgSelect.value;
+    filterMfgSelect.innerHTML = `<option value="">${escapeHtml(fromEntities("MFG &#3607;&#3633;&#3657;&#3591;&#3627;&#3617;&#3604;"))}</option>` +
+      options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+    filterMfgSelect.value = options.includes(current) ? current : "";
+  }
+  if (filterStatusSelect) {
+    const options = [...new Set(state.sheets.map((sheet) => sheet.sheetStatus || SENT_STATUS).filter(Boolean))].sort();
+    const current = filterStatusSelect.value;
+    filterStatusSelect.innerHTML = `<option value="">${escapeHtml(fromEntities("&#3626;&#3634;&#3606;&#3634;&#3609;&#3632;&#3607;&#3633;&#3657;&#3591;&#3627;&#3617;&#3604;"))}</option>` +
+      options.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+    filterStatusSelect.value = options.includes(current) ? current : "";
+  }
+}
+
+function renderMetrics(rows) {
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const weekCount = state.sheets.filter((sheet) => new Date(sheet.createdAt || 0).getTime() >= weekAgo).length;
   document.getElementById("sheetCount").textContent = state.sheets.length;
-  document.getElementById("localCount").textContent = state.sheets.length;
+  document.getElementById("filteredCount").textContent = rows.length;
+  document.getElementById("weekCount").textContent = weekCount;
   document.getElementById("googleMode").textContent = GOOGLE_SCRIPT_URL ? "ON" : "OFF";
 }
 
 function renderList(rows) {
   if (!rows.length) {
-    sheetList.innerHTML = `<p class="empty-state">${escapeHtml(th.noMatchingSheet)}</p>`;
+    sheetList.innerHTML = `<p class="empty-state">${escapeHtml(state.sheets.length ? th.noMatchingSheet : th.noSheetsYet)}</p>`;
     return;
   }
   sheetList.innerHTML = rows.map((sheet) => `
-    <article class="sheet-card">
+    <article class="sheet-card" data-id="${escapeHtml(sheet.id)}" tabindex="0">
+      <span class="card-status">${escapeHtml(sheet.sheetStatus || SENT_STATUS)}</span>
       <strong>${escapeHtml(sheet.mfg)} / ${escapeHtml(sheet.model)}</strong>
       <span>${escapeHtml(sheet.machine)}</span>
       <span>${escapeHtml(formatDate(sheet.updatedAt))}</span>
@@ -248,9 +414,11 @@ function renderTable(rows) {
       <td>${escapeHtml(sheet.problem)}</td>
       <td>${compactNotes(sheet)}</td>
       <td>${escapeHtml(sheet.collector)}<br><span class="muted">${escapeHtml(formatDate(sheet.updatedAt))}</span></td>
+      <td class="detail-cell"><button class="button secondary detail-button" type="button" data-id="${escapeHtml(sheet.id)}">${escapeHtml(th.detailButton)}</button></td>
     </tr>
   `).join("");
   emptyState.hidden = rows.length > 0;
+  emptyState.textContent = state.sheets.length ? th.noMatchingSheet : th.noSheetsYet;
 }
 
 function compactNotes(sheet) {
@@ -285,6 +453,175 @@ function normalizeUrls(value) {
     .filter(Boolean);
 }
 
+function openDetail(id) {
+  const sheet = state.sheets.find((item) => item.id === id);
+  if (!sheet) return;
+  currentDetailSheet = sheet;
+  currentGalleryImages = collectGalleryImages(sheet);
+  detailTitle.textContent = `${sheet.mfg || ""} / ${sheet.model || ""} — ${sheet.machine || ""}`;
+  detailBody.innerHTML = renderDetailBody(sheet);
+  detailModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeDetail() {
+  detailModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  currentDetailSheet = null;
+}
+
+function renderDetailBody(sheet) {
+  const topics = [
+    ["man", sheet.manNotes, sheet.manImageUrls],
+    ["machine", sheet.machineNotes, sheet.machineImageUrls],
+    ["material", sheet.materialNotes, sheet.materialImageUrls],
+    ["method", sheet.methodNotes, sheet.methodImageUrls]
+  ];
+  let galleryCursor = 0;
+  const topicBlocks = topics.map(([key, note, urls]) => {
+    const items = normalizeUrls(urls);
+    const startIndex = galleryCursor;
+    galleryCursor += items.length;
+    return `
+      <div class="detail-block ${key}">
+        <h3>${escapeHtml(topicLabels[key])}</h3>
+        <p>${note ? escapeHtml(note) : `<span class="muted">${escapeHtml(th.no4MNote)}</span>`}</p>
+        ${renderDetailGallery(items, startIndex)}
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="detail-meta">
+      <div><span>MFG</span>${escapeHtml(sheet.mfg)}</div>
+      <div><span>${escapeHtml(th.mfgModel)}</span>${escapeHtml(sheet.model)}</div>
+      <div><span>${escapeHtml(th.machineLabel)}</span>${escapeHtml(sheet.machine)}</div>
+      <div><span>${escapeHtml(th.collectorLabel)}</span>${escapeHtml(sheet.collector)}</div>
+      <div><span>${escapeHtml(th.dateLabel)}</span>${escapeHtml(formatDate(sheet.updatedAt))}</div>
+      <div><span>${escapeHtml(th.statusLabel)}</span>${escapeHtml(sheet.sheetStatus || SENT_STATUS)}</div>
+    </div>
+    <div class="detail-block">
+      <h3>${escapeHtml(th.problemLabel)}</h3>
+      <p>${escapeHtml(sheet.problem)}</p>
+    </div>
+    <div class="detail-note-grid">${topicBlocks}</div>
+    ${sheet.engNote ? `
+      <div class="detail-block">
+        <h3>${escapeHtml(th.engNoteLabel)}</h3>
+        <p>${escapeHtml(sheet.engNote)}</p>
+      </div>
+    ` : ""}
+  `;
+}
+
+function renderDetailGallery(urls, startIndex) {
+  if (!urls.length) return "";
+  return `<div class="detail-image-gallery">${urls.map((url, index) => `
+    <button type="button" data-gallery-index="${startIndex + index}">
+      <img src="${escapeHtml(url)}" alt="4M photo" loading="lazy">
+    </button>
+  `).join("")}</div>`;
+}
+
+function collectGalleryImages(sheet) {
+  const topics = [
+    ["man", sheet.manImageUrls],
+    ["machine", sheet.machineImageUrls],
+    ["material", sheet.materialImageUrls],
+    ["method", sheet.methodImageUrls]
+  ];
+  const images = [];
+  topics.forEach(([key, urls]) => {
+    normalizeUrls(urls).forEach((url) => images.push({ url, label: topicLabels[key] }));
+  });
+  return images;
+}
+
+function openLightbox(index) {
+  if (!currentGalleryImages.length) return;
+  currentGalleryIndex = ((index % currentGalleryImages.length) + currentGalleryImages.length) % currentGalleryImages.length;
+  updateLightboxImage();
+  lightbox.hidden = false;
+}
+
+function closeLightbox() {
+  lightbox.hidden = true;
+}
+
+function showNextImage() {
+  currentGalleryIndex = (currentGalleryIndex + 1) % currentGalleryImages.length;
+  updateLightboxImage();
+}
+
+function showPrevImage() {
+  currentGalleryIndex = (currentGalleryIndex - 1 + currentGalleryImages.length) % currentGalleryImages.length;
+  updateLightboxImage();
+}
+
+function updateLightboxImage() {
+  const item = currentGalleryImages[currentGalleryIndex];
+  if (!item) return;
+  lightboxImage.src = item.url;
+  lightboxImage.alt = item.label;
+  lightboxCaption.textContent = `${item.label} (${currentGalleryIndex + 1}/${currentGalleryImages.length})`;
+}
+
+function printSingleSheet(sheet) {
+  const topics = [
+    ["man", sheet.manNotes, sheet.manImageUrls],
+    ["machine", sheet.machineNotes, sheet.machineImageUrls],
+    ["material", sheet.materialNotes, sheet.materialImageUrls],
+    ["method", sheet.methodNotes, sheet.methodImageUrls]
+  ];
+  const topicsHtml = topics.map(([key, note, urls]) => `
+    <section style="border:1px solid #d6cfc1;border-radius:8px;padding:12px 14px;margin-bottom:12px;">
+      <h3 style="margin:0 0 6px;font-size:1rem;">${escapeHtml(topicLabels[key])}</h3>
+      <p style="white-space:pre-wrap;line-height:1.5;margin:0 0 8px;">${escapeHtml(note || "-")}</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${normalizeUrls(urls).map((url) => `<img src="${escapeHtml(url)}" alt="4M photo" style="width:120px;height:120px;object-fit:cover;border:1px solid #d6cfc1;border-radius:6px;">`).join("")}
+      </div>
+    </section>
+  `).join("");
+
+  const html = `<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><title>4M Worksheet - ${escapeHtml(sheet.mfg)} ${escapeHtml(sheet.model)}</title>
+<style>
+  body { font-family: "Segoe UI", Tahoma, sans-serif; color:#222522; padding: 28px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .meta { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin: 16px 0; }
+  .meta div { border:1px solid #d6cfc1; border-radius:8px; padding:8px 10px; }
+  .meta span { display:block; color:#666b68; font-size:0.75rem; text-transform:uppercase; margin-bottom:2px; }
+</style>
+</head><body>
+  <h1>4M Worksheet</h1>
+  <p style="color:#666b68;margin-top:0;">${escapeHtml(formatDate(sheet.updatedAt))}</p>
+  <div class="meta">
+    <div><span>MFG / Model</span>${escapeHtml(sheet.mfg)} / ${escapeHtml(sheet.model)}</div>
+    <div><span>${escapeHtml(th.machineLabel)}</span>${escapeHtml(sheet.machine)}</div>
+    <div><span>${escapeHtml(th.collectorLabel)}</span>${escapeHtml(sheet.collector)}</div>
+  </div>
+  <section style="border:1px solid #d6cfc1;border-radius:8px;padding:12px 14px;margin-bottom:12px;">
+    <h3 style="margin:0 0 6px;font-size:1rem;">${escapeHtml(th.problemLabel)}</h3>
+    <p style="white-space:pre-wrap;line-height:1.5;margin:0;">${escapeHtml(sheet.problem)}</p>
+  </section>
+  ${topicsHtml}
+  ${sheet.engNote ? `
+  <section style="border:1px solid #d6cfc1;border-radius:8px;padding:12px 14px;">
+    <h3 style="margin:0 0 6px;font-size:1rem;">${escapeHtml(th.engNoteLabel)}</h3>
+    <p style="white-space:pre-wrap;line-height:1.5;margin:0;">${escapeHtml(sheet.engNote)}</p>
+  </section>` : ""}
+</body></html>`;
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) return;
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.onload = () => {
+    printWindow.focus();
+    printWindow.print();
+  };
+}
+
 function exportCsv() {
   const header = [
     "created_at",
@@ -305,7 +642,7 @@ function exportCsv() {
     "sheet_status",
     "eng_note"
   ];
-  const rows = state.sheets.map((sheet) => header.map((key) => {
+  const rows = filteredSheets().map((sheet) => header.map((key) => {
     const map = {
       created_at: formatDate(sheet.createdAt),
       updated_at: formatDate(sheet.updatedAt),
